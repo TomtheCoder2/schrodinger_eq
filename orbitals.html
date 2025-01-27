@@ -20,6 +20,10 @@
         .plot {
             height: 600px;
         }
+
+        .surface-controls {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -29,6 +33,9 @@
     <label>m (magnetic): <input type="number" id="m" value="0"></label>
     <label>resolution: <input type="number" id="res" value="25" min="10"></label>
     <button onclick="updatePlot()">Update</button>
+    <div class="surface-controls">
+        <label><input type="checkbox" id="surfaceToggle"> Show Surface Plot</label>
+    </div>
     <p>Examples:
         <button onclick="setExample(1,0,0)">1s (Hydrogen)</button>
         <button onclick="setExample(2,1,0)">2p (m=0)</button>
@@ -41,6 +48,23 @@
 </div>
 
 <script>
+    // Load saved values from localStorage
+    document.getElementById('n').value = localStorage.getItem('n') || 1;
+    document.getElementById('l').value = localStorage.getItem('l') || 0;
+    document.getElementById('m').value = localStorage.getItem('m') || 0;
+    document.getElementById('res').value = localStorage.getItem('res') || 25;
+    document.getElementById('surfaceToggle').checked = localStorage.getItem('surfaceToggle') === 'true';
+
+    // Save to localStorage when inputs change
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', function () {
+            localStorage.setItem(this.id, this.value);
+            if (this.type === 'checkbox') {
+                localStorage.setItem(this.id, this.checked);
+            }
+        });
+    });
+
     function setExample(n, l, m) {
         document.getElementById('n').value = n;
         document.getElementById('l').value = l;
@@ -111,6 +135,39 @@
         }
         return points;
     }
+    function generateSurfaceData(n, l, m, res = 25) {
+        const theta = Array.from({length: res}, (_, i) => Math.PI * i / (res - 1));
+        const phi = Array.from({length: res * 2}, (_, i) => Math.PI * 2 * i / (res * 2 - 1));
+
+        const surface = {
+            x: [], y: [], z: [],
+            colors: [], opacity: 0.8
+        };
+
+        theta.forEach(t => {
+            const rowX = [], rowY = [], rowZ = [], rowC = [];
+            const angular = angularSquared(l, m, t);
+            const r = n * 2 * Math.sqrt(angular); // Scale radius by angular component
+
+            phi.forEach(p => {
+                const x = r * Math.sin(t) * Math.cos(p);
+                const y = r * Math.sin(t) * Math.sin(p);
+                const z = r * Math.cos(t);
+
+                rowX.push(x);
+                rowY.push(y);
+                rowZ.push(z);
+                rowC.push(angular);
+            });
+
+            surface.x.push(rowX);
+            surface.y.push(rowY);
+            surface.z.push(rowZ);
+            surface.colors.push(rowC);
+        });
+
+        return surface;
+    }
 
     function generateHeatmapData(n, l, m) {
         const size = 20;
@@ -135,51 +192,71 @@
         const l = parseInt(document.getElementById('l').value);
         const m = parseInt(document.getElementById('m').value);
         const res = parseInt(document.getElementById('res').value);
+        const showSurface = document.getElementById('surfaceToggle').checked;
 
-        // Basic quantum number validation
+        // Save current state
+        localStorage.setItem('n', n);
+        localStorage.setItem('l', l);
+        localStorage.setItem('m', m);
+        localStorage.setItem('res', res);
+        localStorage.setItem('surfaceToggle', showSurface);
+
+        // Validation
         if (l >= n || Math.abs(m) > l) {
             alert('Invalid quantum numbers!');
             return;
         }
 
-        // Generate data
-        const points3D = generate3DData(n, l, m, res);
+        // Generate plots
+        const traces = [];
         const heatmapData = generateHeatmapData(n, l, m);
+        console.log(showSurface);
 
-        // Prepare 3D plot data
-        const x = points3D.map(p => p.x);
-        const y = points3D.map(p => p.y);
-        const z = points3D.map(p => p.z);
-        const colors = points3D.map(p => p.density);
-        const maxDensity = Math.max(...colors);
-        const sizes = colors.map(d => 5 * (d / maxDensity));
-
-        const trace3D = {
-            x, y, z,
-            mode: 'markers',
-            marker: {
-                size: sizes,
-                color: colors,
+        if (showSurface) {
+            const surface = generateSurfaceData(n, l, m, res);
+            traces.push({
+                x: surface.x,
+                y: surface.y,
+                z: surface.z,
                 colorscale: 'Viridis',
-                opacity: 0.6,
-                sizemode: 'diameter'
-            },
-            type: 'scatter3d'
-        };
+                surfacecolor: surface.colors,
+                type: 'surface',
+                opacity: 0.8
+            });
+        } else {
+            const points3D = generate3DData(n, l, m, res);
+            const x = points3D.map(p => p.x);
+            const y = points3D.map(p => p.y);
+            const z = points3D.map(p => p.z);
+            const colors = points3D.map(p => p.density);
+            console.log(colors);
+            const maxDensity = Math.max(...colors);
+            const sizes = colors.map(d => 5 * (d / maxDensity));
 
-        const heatmapTrace = {
-            z: heatmapData,
-            type: 'heatmap',
-            colorscale: 'Viridis'
-        };
+            traces.push({
+                x, y, z,
+                mode: 'markers',
+                marker: {
+                    size: sizes,
+                    color: colors,
+                    colorscale: 'Viridis',
+                    opacity: 0.6,
+                    sizemode: 'diameter'
+                },
+                type: 'scatter3d'
+            });
+        }
 
-        // Update plots
-        Plotly.newPlot('3dplot', [trace3D], {
-            title: `3D Probability Density (n=${n}, l=${l}, m=${m})`,
+        Plotly.newPlot('3dplot', traces, {
+            title: `${showSurface ? 'Surface' : 'Probability'} Density (n=${n}, l=${l}, m=${m})`,
             margin: {t: 40}
         });
 
-        Plotly.newPlot('heatmap', [heatmapTrace], {
+        Plotly.newPlot('heatmap', [{
+            z: heatmapData,
+            type: 'heatmap',
+            colorscale: 'Viridis'
+        }], {
             title: `XY Plane Heatmap (z=0)`,
             xaxis: {title: 'x'},
             yaxis: {title: 'y'}
