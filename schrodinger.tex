@@ -7,6 +7,11 @@
 \usetheme{Berlin}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
+\usepackage{multimedia}
+
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning}
+
+
 
 
 
@@ -173,7 +178,7 @@
                 \addplot3[
                 surf,
                 shader = interp,
-                samples = 20,
+                samples = 60,
                 domain = -1.75:1.75,
                 y domain = -1.75:1.75,
 %                point meta=abs,
@@ -602,9 +607,11 @@
 %    change color from blue to green
 %    \setbeamercolor{frametitle}{bg=green}
     \include{tdse}
+    \input{orbitals}
+
     \begin{frame}
         \centering
         \Huge
-        \textcolor{white}{Vielen Dank für Ihre Aufmerksamkeit!}
+        \textcolor{black}{Vielen Dank für Ihre Aufmerksamkeit!}
     \end{frame}
 \end{document}
