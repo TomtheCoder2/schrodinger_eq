@@ -1,0 +1,11 @@
+[package]
+name = "schrodinger_eq"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.30.0"
+egui = "0.30.0"
+egui_plot = "0.30.0"
+plotly = "0.12.1"
+nalgebra = "0.33.2"
