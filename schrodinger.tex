@@ -1,11 +1,16 @@
 \documentclass{beamer}
 \usepackage{amsmath}
 \usepackage{graphicx}
+\usepackage{animate}
 \usepackage{tikz}
+\usetikzlibrary{decorations.pathmorphing}
 \usetheme{Berlin}
 \usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
 
-\title{Die Schrödinger-Gleichung lösen für ein Elektron und eine Potenzialwand}
+
+
+\title{Die Schrödinger-Gleichung: Herleitung und Anwendung}
 \author{Lucien \& Jan}
 \date{\today}
 
@@ -14,6 +19,8 @@
     \begin{frame}
         \titlepage
     \end{frame}
+
+%    \include{test_import}
 
     \begin{frame}{Was ist die Schrödinger-Gleichung?}
         \begin{itemize}
@@ -145,8 +152,8 @@
                 [
                 width=0.8\textwidth,
                 height=6cm,
-                colormap/viridis,    % Moderner Farbverlauf
-                view = {45}{30},     % Perspektive (Azimut, Elevation)
+                colormap/viridis,
+                view = {45}{30},
                 xlabel = $x$,
                 ylabel = $y$,
                 axis line style={draw=none},
@@ -155,7 +162,7 @@
                 grid = major,
                 grid style = {dashed, gray!30},
                 tick label style = {font=\scriptsize},
-                title = {Quantenmechanisches Elektronenorbital},
+                title = {Moduliertes Gaußsches Wellenpaket},
                 title style = {font=\small},
                 colorbar,
                 colorbar style={
@@ -166,14 +173,20 @@
                 \addplot3[
                 surf,
                 shader = interp,
-                samples = 50,        % Ausreichend für glatte Darstellung
-                domain = -3:3,       % Definitionsbereich
-                y domain = -3:3,
-                ]
-                    {exp(-(x^2 + y^2))};     % Gaußsches Wellenpaket (vereinfacht)
+                samples = 20,
+                domain = -1.75:1.75,
+                y domain = -1.75:1.75,
+%                point meta=abs,
+                ] {
+%                    exp(-(x^2 + y^2))       % Gaußscher Kern
+%                    * (1 + 0.4*cos(6*x))    % Wellenmodulation
+%                    * (1 + 0.4*cos(6*y))    % 2D-Interferenzmuster
+%                    exp(-(x^2 + y^2))* (1 + 0.4*cos(6*x))* (1 + 0.4*cos(6*y))
+                    (1 + 0.4*cos(6* deg(x)))* (1 + 0.4*cos(6*deg(y))) * exp(-(x^2 + y^2))
+                };
 
-                \node[white,font=\tiny,rotate=90] at (axis cs:-3.5,-3.5,0.8)
-                    {Maximale Aufenthaltswahrscheinlichkeit im Zentrum};
+                \node[white,font=\tiny] at (axis cs:-2.5,-2.5,0.7)
+                    {$\psi(x,y) = e^{-(x^2+y^2)}(1 + 0.4\cos 6x)(1 + 0.4\cos 6y)$};
             \end{axis}
         \end{tikzpicture}
     \end{frame}
@@ -225,7 +238,8 @@
                         \addplot[thick, blue] coordinates {(1,1) (2,1)};
                         \addplot[thick, blue] coordinates {(2,0) (3,0)};
                     \end{axis}
-                \end{tikzpicture}}
+                \end{tikzpicture}
+            }
         \end{columns}
     \end{frame}
 
@@ -245,7 +259,7 @@
         \end{itemize}
     \end{frame}
 
-    \begin{frame}{Bereich II ($x_1 ≤ x ≤ x_2$)}
+    \begin{frame}{Bereich II ($x_1 <= x <= x_2$)}
         \[
             -\frac{\hbar^2}{2m}\psi'' + E_0\psi = E\psi \Rightarrow \psi'' = \kappa^2\psi
         \]
@@ -397,8 +411,65 @@
 
         Tunnelwahrscheinlichkeit:
         \[
-            T \approx e^{-2\kappa L} = e^{-2 \cdot 5.12 \cdot 10^9 \cdot 0.3 \cdot 10^{-9}} = e^{-3.07} \approx 0.048 \approx 4.8\%
+            T \approx e^{-2\kappa L} = e^{-2 \cdot 5.12 \cdoxt 10^9 \cdot 0.3 \cdot 10^{-9}} = e^{-3.07} \approx 0.048 \approx 4.8\%
         \]
+    \end{frame}
+
+    \begin{frame}{Wellenfunktion und Potenzialwand}
+        \centering
+        \begin{tikzpicture}
+            \begin{axis}
+                [
+                width=0.9\textwidth,
+                height=5cm,
+                xlabel=$x$ (nm),
+                ylabel={$|\psi(x)|^2$, $V(x)$ (eV)},
+                xmin=-0.5, xmax=0.8,
+                ymin=0, ymax=4,
+                grid=major,
+                legend style={cells={anchor=west},legend pos=north west}
+                ]
+
+% Potenzialwand zeichnen
+                \addplot[red,thick,const plot] coordinates {
+                    (-0.5,0)
+                    (0,0)
+                    (0,3)
+                    (0.3,3)
+                    (0.3,0)
+                    (0.8,0)
+                } node[pos=0.5,above left] {$V(x)$};
+
+% Wellenfunktion (qualitativer Verlauf)
+                \addplot[blue,thick,samples=200,domain=-0.5:0] {
+                    1.2*sin(deg(25*x + 5)) + 0.8 % Bereich I: Links der Wand
+                };
+                \addplot[blue,thick,samples=200,domain=0:0.3] {
+                    1.0*exp(-15*x) % Bereich II: In der Wand (exponentieller Abfall)
+                };
+                \addplot[blue,thick,samples=200,domain=0.3:0.8] {
+                    0.22*sin(deg(25*x - 5)) % Bereich III: Rechts der Wand
+                };
+
+% Theoretische Parameter
+                \node[anchor=south west] at (0.4,1.5) {
+                    \begin{tabular}{l}
+                        $L = 0.3$ nm \\
+                        $E_0 = 3$ eV \\
+                        $E = 2$ eV   \\
+                        $T \approx 4.8\%$
+                    \end{tabular}
+                };
+
+                \legend{$V(x)$, $|\psi(x)|^2$}
+            \end{axis}
+        \end{tikzpicture}
+
+        \begin{itemize}
+            \item Links: Einlaufende + reflektierte Welle ($|A|^2 + |B|^2 \approx 95.2\%$)
+            \item Wand: Exponentieller Abfall ($\psi \sim e^{-\kappa x}$)
+            \item Rechts: Transmittierte Welle ($|F|^2 \approx 4.8\%$)
+        \end{itemize}
     \end{frame}
 
     \begin{frame}{Zusammenfassung Tunnelformel}
@@ -507,8 +578,8 @@
 
     \begin{frame}{Lösung: High-K Materialien}
         \begin{itemize}
-            \item Siliziumdioxid (SiO₂) wird durch High-K-Materialien ersetzt.
-            \item Beispiel: Hafniumdioxid (HfO₂) – höhere Barrierenhöhe reduziert das Tunneln.
+            \item Siliziumdioxid ($SiO_2$) wird durch High-K-Materialien ersetzt.
+            \item Beispiel: Hafniumdioxid ($HfO_2$) – höhere Barrierenhöhe reduziert das Tunneln.
             \item Ermöglicht kleinere und effizientere Transistoren.
         \end{itemize}
     \end{frame}
@@ -528,4 +599,12 @@
         Quantenphänomene wie Tunneln zeigen fundamentale Unterschiede zur klassischen Physik!
     \end{frame}
 
+%    change color from blue to green
+%    \setbeamercolor{frametitle}{bg=green}
+    \include{tdse}
+    \begin{frame}
+        \centering
+        \Huge
+        \textcolor{white}{Vielen Dank für Ihre Aufmerksamkeit!}
+    \end{frame}
 \end{document}

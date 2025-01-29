@@ -3,59 +3,121 @@
 <head>
     <title>Electron Probability Visualization</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script type="text/javascript" async
+            src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js">
+    </script>
     <style>
-        .container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            padding: 20px;
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .split-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
         }
 
         .controls {
-            grid-column: 1 / -1;
+            flex: 0 0 30%; /* Initial width of the left panel */
             padding: 20px;
-            background: #f0f0f0;
+            background: #f9f9f9;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .controls input {
+            margin-left: 10px;
+        }
+
+        .controls button {
+            margin: 10px 0;
+            padding: 8px 12px;
+            background: #007BFF;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .controls button:hover {
+            background: #0056b3;
+        }
+
+        .controls ul {
+            margin-top: 5px;
+        }
+
+        .plots {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
         }
 
         .plot {
-            height: 600px;
+            flex: 1;
+            border: 1px solid #ddd;
         }
 
-        .surface-controls {
-            margin-top: 10px;
+        .resizer {
+            width: 5px;
+            background: #ccc;
+            cursor: ew-resize;
         }
     </style>
 </head>
 <body>
-<div class="controls">
-    <label>n (principal): <input type="number" id="n" value="1" min="1"></label>
-    <label>l (azimuthal): <input type="number" id="l" value="0" min="0"></label>
-    <label>m (magnetic): <input type="number" id="m" value="0"></label>
-    <label>resolution: <input type="number" id="res" value="25" min="10"></label>
-    <button onclick="updatePlot()">Update</button>
-    <div class="surface-controls">
-        <label><input type="checkbox" id="surfaceToggle"> Show Surface Plot</label>
+<div class="split-container">
+    <div class="controls">
+        <label>n (principal): <input id="n" min="1" type="number" value="1"></label>
+        <label>l (azimuthal): <input id="l" min="0" type="number" value="0"></label>
+        <label>m (magnetic): <input id="m" type="number" value="0"></label>
+        <label>resolution: <input id="res" min="10" type="number" value="25"></label>
+        <button onclick="updatePlot()">Update</button>
+        <div class="surface-controls">
+            <label><input id="surfaceToggle" type="checkbox"> Show Surface Plot</label>
+        </div>
+        <p>Enter atomic number or element name:
+            <input id="atomicInput" placeholder="e.g., Hydrogen or 1" type="text">
+        <ul id="suggestions" style="list-style: none; padding: 0; margin: 0; display: none;"></ul>
+        <button onclick="setQuantumNumbers()">Set Quantum Numbers</button>
+        <span>Electron configuration: <span id="electronConfiguration"></span></span>
+        </p>
+        <div>
+            <span id="quantumNumbersDisplay"></span>
+        </div>
+        <p>Examples:
+            <button onclick="setExample(1,0,0)">1s (Hydrogen)</button>
+            <button onclick="setExample(2,1,0)">2p (m=0)</button>
+            <button onclick="setExample(3,2,0)">3d (m=0)</button>
+        </p>
+        <p>Mathematical Function: <span id="mathFunction"></span></p>
     </div>
-    <p>Examples:
-        <button onclick="setExample(1,0,0)">1s (Hydrogen)</button>
-        <button onclick="setExample(2,1,0)">2p (m=0)</button>
-        <button onclick="setExample(3,2,0)">3d (m=0)</button>
-    </p>
-</div>
-<div class="container">
-    <div id="3dplot" class="plot"></div>
-    <div id="heatmap" class="plot"></div>
+    <div class="resizer"></div>
+    <div class="plots">
+        <div class="plot" id="3dplot"></div>
+<!--        <div class="plot" id="heatmap"></div>-->
+    </div>
 </div>
 
+
 <script>
-    // Load saved values from localStorage
     document.getElementById('n').value = localStorage.getItem('n') || 1;
     document.getElementById('l').value = localStorage.getItem('l') || 0;
     document.getElementById('m').value = localStorage.getItem('m') || 0;
     document.getElementById('res').value = localStorage.getItem('res') || 25;
     document.getElementById('surfaceToggle').checked = localStorage.getItem('surfaceToggle') === 'true';
+    document.getElementById('atomicInput').value = localStorage.getItem('atomicInput') || 'Hydrogen';
 
-    // Save to localStorage when inputs change
     document.querySelectorAll('input').forEach(input => {
         input.addEventListener('change', function () {
             localStorage.setItem(this.id, this.value);
@@ -71,6 +133,315 @@
         document.getElementById('m').value = m;
         updatePlot();
     }
+
+    function getQuantumNumbers(atomicNumber) {
+        // Orbital capacities: [n, l, max electrons]
+        const orbitals = [
+            [1, 0, 2],  // 1s
+            [2, 0, 2],  // 2s
+            [2, 1, 6],  // 2p
+            [3, 0, 2],  // 3s
+            [3, 1, 6],  // 3p
+            [4, 0, 2],  // 4s
+            [3, 2, 10], // 3d
+            [4, 1, 6],  // 4p
+            [5, 0, 2],  // 5s
+            [4, 2, 10], // 4d
+            [5, 1, 6],  // 5p
+            [6, 0, 2],  // 6s
+            [4, 3, 14], // 4f
+            [5, 2, 10], // 5d
+            [6, 1, 6],  // 6p
+            [7, 0, 2],  // 7s
+            [5, 3, 14], // 5f
+            [6, 2, 10], // 6d
+            [7, 1, 6],  // 7p
+        ];
+
+        let remainingElectrons = atomicNumber;
+
+        for (const [n, l, maxElectrons] of orbitals) {
+            if (remainingElectrons <= maxElectrons) {
+                // Determine m (magnetic quantum number)
+                const mValues = Array.from({length: 2 * l + 1}, (_, i) => i - l);
+                const m = mValues[Math.floor(Math.random() * mValues.length)]; // Randomly select m
+
+                return {n, l, m, electronsInOrbital: remainingElectrons};
+            }
+            remainingElectrons -= maxElectrons;
+        }
+
+        throw new Error("Atomic number exceeds known orbital configurations.");
+    }
+
+    function getElectronConfiguration(atomicNumber) {
+        const orbitals = [
+            {n: 1, l: 0, maxElectrons: 2, name: "1s"},
+            {n: 2, l: 0, maxElectrons: 2, name: "2s"},
+            {n: 2, l: 1, maxElectrons: 6, name: "2p"},
+            {n: 3, l: 0, maxElectrons: 2, name: "3s"},
+            {n: 3, l: 1, maxElectrons: 6, name: "3p"},
+            {n: 4, l: 0, maxElectrons: 2, name: "4s"},
+            {n: 3, l: 2, maxElectrons: 10, name: "3d"},
+            {n: 4, l: 1, maxElectrons: 6, name: "4p"},
+            {n: 5, l: 0, maxElectrons: 2, name: "5s"},
+            {n: 4, l: 2, maxElectrons: 10, name: "4d"},
+            {n: 5, l: 1, maxElectrons: 6, name: "5p"},
+            {n: 6, l: 0, maxElectrons: 2, name: "6s"},
+            {n: 4, l: 3, maxElectrons: 14, name: "4f"},
+            {n: 5, l: 2, maxElectrons: 10, name: "5d"},
+            {n: 6, l: 1, maxElectrons: 6, name: "6p"},
+            {n: 7, l: 0, maxElectrons: 2, name: "7s"},
+            {n: 5, l: 3, maxElectrons: 14, name: "5f"},
+            {n: 6, l: 2, maxElectrons: 10, name: "6d"},
+            {n: 7, l: 1, maxElectrons: 6, name: "7p"},
+        ];
+
+        const nobleGases = [
+            {Z: 2, symbol: "[He]"},
+            {Z: 10, symbol: "[Ne]"},
+            {Z: 18, symbol: "[Ar]"},
+            {Z: 36, symbol: "[Kr]"},
+            {Z: 54, symbol: "[Xe]"},
+            {Z: 86, symbol: "[Rn]"},
+        ];
+
+        let configuration = [];
+        let remainingElectrons = atomicNumber;
+
+        // Find the nearest noble gas shorthand
+        const nobleGas = nobleGases.filter(gas => gas.Z <= atomicNumber).pop();
+        if (nobleGas) {
+            configuration.push(nobleGas.symbol);
+            remainingElectrons -= nobleGas.Z;
+        }
+
+        // Distribute electrons across orbitals
+        for (const orbital of orbitals) {
+            if (remainingElectrons <= 0) break;
+            const electronsInOrbital = Math.min(remainingElectrons, orbital.maxElectrons);
+            configuration.push(`${orbital.name}${electronsInOrbital}`);
+            remainingElectrons -= electronsInOrbital;
+        }
+
+        return configuration.join(" ");
+    }
+
+    const elements = [
+        {number: 1, name: "Hydrogen"},
+        {number: 2, name: "Helium"},
+        {number: 3, name: "Lithium"},
+        {number: 4, name: "Beryllium"},
+        {number: 5, name: "Boron"},
+        {number: 6, name: "Carbon"},
+        {number: 7, name: "Nitrogen"},
+        {number: 8, name: "Oxygen"},
+        {number: 9, name: "Fluorine"},
+        {number: 10, name: "Neon"},
+        {number: 11, name: "Sodium"},
+        {number: 12, name: "Magnesium"},
+        {number: 13, name: "Aluminum"},
+        {number: 14, name: "Silicon"},
+        {number: 15, name: "Phosphorus"},
+        {number: 16, name: "Sulfur"},
+        {number: 17, name: "Chlorine"},
+        {number: 18, name: "Argon"},
+        {number: 19, name: "Potassium"},
+        {number: 20, name: "Calcium"},
+        {number: 21, name: "Scandium"},
+        {number: 22, name: "Titanium"},
+        {number: 23, name: "Vanadium"},
+        {number: 24, name: "Chromium"},
+        {number: 25, name: "Manganese"},
+        {number: 26, name: "Iron"},
+        {number: 27, name: "Cobalt"},
+        {number: 28, name: "Nickel"},
+        {number: 29, name: "Copper"},
+        {number: 30, name: "Zinc"},
+        {number: 31, name: "Gallium"},
+        {number: 32, name: "Germanium"},
+        {number: 33, name: "Arsenic"},
+        {number: 34, name: "Selenium"},
+        {number: 35, name: "Bromine"},
+        {number: 36, name: "Krypton"},
+        {number: 37, name: "Rubidium"},
+        {number: 38, name: "Strontium"},
+        {number: 39, name: "Yttrium"},
+        {number: 40, name: "Zirconium"},
+        {number: 41, name: "Niobium"},
+        {number: 42, name: "Molybdenum"},
+        {number: 43, name: "Technetium"},
+        {number: 44, name: "Ruthenium"},
+        {number: 45, name: "Rhodium"},
+        {number: 46, name: "Palladium"},
+        {number: 47, name: "Silver"},
+        {number: 48, name: "Cadmium"},
+        {number: 49, name: "Indium"},
+        {number: 50, name: "Tin"},
+        {number: 51, name: "Antimony"},
+        {number: 52, name: "Tellurium"},
+        {number: 53, name: "Iodine"},
+        {number: 54, name: "Xenon"},
+        {number: 55, name: "Cesium"},
+        {number: 56, name: "Barium"},
+        {number: 57, name: "Lanthanum"},
+        {number: 58, name: "Cerium"},
+        {number: 59, name: "Praseodymium"},
+        {number: 60, name: "Neodymium"},
+        {number: 61, name: "Promethium"},
+        {number: 62, name: "Samarium"},
+        {number: 63, name: "Europium"},
+        {number: 64, name: "Gadolinium"},
+        {number: 65, name: "Terbium"},
+        {number: 66, name: "Dysprosium"},
+        {number: 67, name: "Holmium"},
+        {number: 68, name: "Erbium"},
+        {number: 69, name: "Thulium"},
+        {number: 70, name: "Ytterbium"},
+        {number: 71, name: "Lutetium"},
+        {number: 72, name: "Hafnium"},
+        {number: 73, name: "Tantalum"},
+        {number: 74, name: "Tungsten"},
+        {number: 75, name: "Rhenium"},
+        {number: 76, name: "Osmium"},
+        {number: 77, name: "Iridium"},
+        {number: 78, name: "Platinum"},
+        {number: 79, name: "Gold"},
+        {number: 80, name: "Mercury"},
+        {number: 81, name: "Thallium"},
+        {number: 82, name: "Lead"},
+        {number: 83, name: "Bismuth"},
+        {number: 84, name: "Polonium"},
+        {number: 85, name: "Astatine"},
+        {number: 86, name: "Radon"},
+        {number: 87, name: "Francium"},
+        {number: 88, name: "Radium"},
+        {number: 89, name: "Actinium"},
+        {number: 90, name: "Thorium"},
+        {number: 91, name: "Protactinium"},
+        {number: 92, name: "Uranium"},
+        {number: 93, name: "Neptunium"},
+        {number: 94, name: "Plutonium"},
+        {number: 95, name: "Americium"},
+        {number: 96, name: "Curium"},
+        {number: 97, name: "Berkelium"},
+        {number: 98, name: "Californium"},
+        {number: 99, name: "Einsteinium"},
+        {number: 100, name: "Fermium"},
+        {number: 101, name: "Mendelevium"},
+        {number: 102, name: "Nobelium"},
+        {number: 103, name: "Lawrencium"},
+        {number: 104, name: "Rutherfordium"},
+        {number: 105, name: "Dubnium"},
+        {number: 106, name: "Seaborgium"},
+        {number: 107, name: "Bohrium"},
+        {number: 108, name: "Hassium"},
+        {number: 109, name: "Meitnerium"},
+        {number: 110, name: "Darmstadtium"},
+        {number: 111, name: "Roentgenium"},
+        {number: 112, name: "Copernicium"},
+        {number: 113, name: "Nihonium"},
+        {number: 114, name: "Flerovium"},
+        {number: 115, name: "Moscovium"},
+        {number: 116, name: "Livermorium"},
+        {number: 117, name: "Tennessine"},
+        {number: 118, name: "Oganesson"},
+    ];
+
+    function autocomplete(input, suggestionsList, callback) {
+        input.addEventListener("input", function () {
+            const query = this.value.toLowerCase();
+            suggestionsList.innerHTML = "";
+
+            if (query === "") {
+                suggestionsList.style.display = "none";
+                return;
+            }
+
+            const matches = elements.filter(element =>
+                element.name.toLowerCase().startsWith(query)
+            );
+
+            matches.forEach(match => {
+                const li = document.createElement("li");
+                li.textContent = `${match.name} (${match.number})`;
+                li.style.cursor = "pointer";
+                li.onclick = () => {
+                    input.value = match.name;
+                    input.dataset.atomicNumber = match.number;
+                    suggestionsList.style.display = "none";
+                    callback(match.number);
+                };
+                suggestionsList.appendChild(li);
+            });
+
+            suggestionsList.style.display = matches.length > 0 ? "block" : "none";
+        });
+
+        input.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                const firstSuggestion = suggestionsList.querySelector("li");
+                if (firstSuggestion) {
+                    firstSuggestion.click();
+                }
+            }
+        });
+    }
+
+    function updateAtomicInput(input) {
+        const atomicNumber = parseInt(input.value);
+        if (!isNaN(atomicNumber)) {
+            const element = elements.find(el => el.number === atomicNumber);
+            if (element) {
+                input.value = element.name;
+                input.dataset.atomicNumber = atomicNumber;
+            }
+        }
+    }
+
+    function setQuantumNumbers() {
+        const input = document.getElementById("atomicInput");
+        let atomicNumber = parseInt(input.dataset.atomicNumber || input.value);
+        if ( atomicNumber < 1 || atomicNumber > elements.length) {
+            alert("Please enter a valid atomic number or element name.");
+            return;
+        }
+
+        const element = elements.find(el => el.number === atomicNumber || el.name.toLowerCase() === input.value.toLowerCase());
+        if (element) {
+            input.value = element.name;
+            atomicNumber = element.number;
+        }
+
+        console.log(atomicNumber);
+
+        localStorage.setItem("atomicNumber", atomicNumber);
+
+        const {n, l, m, electronsInOrbital} = getQuantumNumbers(atomicNumber);
+        document.getElementById("electronConfiguration").innerText = getElectronConfiguration(atomicNumber);
+
+        document.getElementById("n").value = n;
+        document.getElementById("l").value = l;
+        document.getElementById("m").value = m;
+
+        document.getElementById("quantumNumbersDisplay").innerText =
+            `For atomic number ${atomicNumber}: n=${n}, l=${l}, m=${m}`;
+        updatePlot();
+    }
+
+    // Attach autocomplete functionality
+    const atomicInput = document.getElementById("atomicInput");
+    const suggestionsList = document.getElementById("suggestions");
+
+    autocomplete(atomicInput, suggestionsList, atomicNumber => {
+        atomicInput.dataset.atomicNumber = atomicNumber;
+    });
+
+    atomicInput.addEventListener("blur", () => {
+        updateAtomicInput(atomicInput);
+    });
+
 
     function radial(n, l, r) {
         // Bohr radius set to 1 for simplicity
@@ -135,6 +506,7 @@
         }
         return points;
     }
+
     function generateSurfaceData(n, l, m, res = 25) {
         const theta = Array.from({length: res}, (_, i) => Math.PI * i / (res - 1));
         const phi = Array.from({length: res * 2}, (_, i) => Math.PI * 2 * i / (res * 2 - 1));
@@ -221,7 +593,13 @@
                 colorscale: 'Viridis',
                 surfacecolor: surface.colors,
                 type: 'surface',
-                opacity: 0.8
+                opacity: 0.8,
+                colorbar: {
+                    title: 'Angular Component',
+                    titleside: 'right',
+                    // tickvals: [0, 0.25, 0.5, 0.75, 1],
+                    ticks: 'outside'
+                }
             });
         } else {
             const points3D = generate3DData(n, l, m, res);
@@ -252,19 +630,82 @@
             margin: {t: 40}
         });
 
-        Plotly.newPlot('heatmap', [{
-            z: heatmapData,
-            type: 'heatmap',
-            colorscale: 'Viridis'
-        }], {
-            title: `XY Plane Heatmap (z=0)`,
-            xaxis: {title: 'x'},
-            yaxis: {title: 'y'}
-        });
+        renderMathFunction(n, l, m);
+
+        // Plotly.newPlot('heatmap', [{
+        //     z: heatmapData,
+        //     type: 'heatmap',
+        //     colorscale: 'Viridis'
+        // }], {
+        //     title: `XY Plane Heatmap (z=0)`,
+        //     xaxis: {title: 'x'},
+        //     yaxis: {title: 'y'}
+        // });
     }
 
     // Initial plot
     updatePlot();
+
+
+    // js for movable border
+
+    const resizer = document.querySelector('.resizer');
+    const controls = document.querySelector('.controls');
+    const plots = document.querySelector('.plots');
+
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        document.body.style.cursor = 'ew-resize';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const newWidth = e.clientX;
+        if (newWidth > 100 && newWidth < window.innerWidth - 100) {
+            controls.style.flex = `0 0 ${newWidth}px`;
+        }
+    });
+
+    document.addEventListener('mouseup', () => {
+        isResizing = false;
+        document.body.style.cursor = 'default';
+    });
+
+    // math function
+    function renderMathFunction(n, l, m) {
+        const formula = `
+    \\[
+    \\Psi_{n,l,m}(r, \\theta, \\phi) = R_{n,l}(r) \\cdot Y_{l,m}(\\theta, \\phi)
+    \\]
+    <br>
+    <p><b>Explanation:</b></p>
+    <ul>
+        <li><b>\\(\\Psi_{n,l,m}(r, \\theta, \\phi)\\):</b> The wavefunction of the electron, which depends on the quantum numbers n (principal), l (azimuthal), and m (magnetic), and is a function of the spherical coordinates r (radius), θ (polar angle), and φ (azimuthal angle).</li>
+        <li><b>\\(R_{n,l}(r)\\):</b> The radial part of the wavefunction, dependent on n and l. It describes how the probability density changes with the radial distance from the nucleus.</li>
+        <li><b>\\(Y_{l,m}(\\theta, \\phi)\\):</b> The spherical harmonics, which describe the angular part of the wavefunction and depend on l and m. They are functions of the polar angle \\((\\theta)\\) and azimuthal angle \\((\\phi)\\).</li>
+    </ul>
+    <br>
+    \\[
+    Y_{l,m}(\\theta, \\phi) = \\sqrt{\\frac{(2l+1)}{4\\pi} \\cdot \\frac{(l-m)!}{(l+m)!}} \\cdot P^m_l(\\cos\\theta) e^{im\\phi}
+    \\]
+    <br>
+    <p><b>Explanation of the Spherical Harmonics:</b></p>
+    <ul>
+        <li><b>\\(\\sqrt{\\frac{(2l+1)}{4\\pi}}\\):</b> A normalization constant that ensures the spherical harmonics are properly scaled.</li>
+        <li><b>\\(\\frac{(l-m)!}{(l+m)!}\\):</b> The factorial ratio that arises in the angular part of the solution.</li>
+        <li><b>\\(P^m_l(\\cos\\theta)\\):</b> The associated Legendre polynomial, which depends on the polar angle \\((\\theta)\\) and the quantum numbers l and m.</li>
+        <li><b>\\(e^{im\\phi}\\):</b> The exponential factor that incorporates the azimuthal angle \\((\\phi)\\) and describes the periodic nature of the angular part of the wavefunction.</li>
+    </ul>
+`;
+        document.getElementById('mathFunction').innerHTML = formula;
+
+        // Re-render MathJax
+        MathJax.typesetPromise();
+    }
+
+
 </script>
 </body>
 </html>

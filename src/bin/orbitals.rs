@@ -1,6 +1,6 @@
 use eframe::egui;
 use plotly::common::ColorScale;
-use plotly::{Plot, Surface};
+use plotly::{Mesh3D, Plot, Surface};
 use std::f64::consts::{E, PI};
 
 #[derive(Clone, Copy, Debug)]
@@ -106,7 +106,7 @@ impl eframe::App for OrbitalApp {
                 ui.vertical(|ui| {
                     ui.label("3D Orbital Plot:");
                     let html = format!(r#"<html><header><script src='https://cdn.plot.ly/plotly-2.35.2.min.js'></script></header><body>{}</body>"#, plot.to_inline_html(Some("orbital-plot")));
-                    
+
                     // ui.label(egui::RichText::new(html).monospace());
                     //save to file
                     let path = "orbital-plot.html";
@@ -117,13 +117,68 @@ impl eframe::App for OrbitalApp {
     }
 }
 
+use nalgebra::Point3;
+use std::collections::HashMap;
+
+// Function to interpolate Z values onto a grid
+pub fn interpolate_to_grid(
+    points: Vec<Point3<f64>>, // Input 3D points
+    x_grid: Vec<f64>,         // Grid x-coordinates
+    y_grid: Vec<f64>,         // Grid y-coordinates
+) -> Vec<Vec<f64>> {
+    let mut z_grid = vec![vec![f64::NAN; y_grid.len()]; x_grid.len()];
+
+    for (i, &x) in x_grid.iter().enumerate() {
+        for (j, &y) in y_grid.iter().enumerate() {
+            // Find the nearest point(s) and interpolate
+            let mut nearest_points: Vec<(Point3<f64>, f64)> = points
+                .iter()
+                .map(|p| (*p, ((p.x - x).powi(2) + (p.y - y).powi(2)).sqrt()))
+                .collect();
+
+            // Sort by distance
+            nearest_points.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+            // Simple nearest-neighbor interpolation
+            if let Some((nearest, _)) = nearest_points.get(0) {
+                z_grid[i][j] = nearest.z;
+            }
+        }
+    }
+
+    z_grid
+}
+
+fn f_main() {
+    // Example scattered 3D points
+    let points = vec![
+        Point3::new(1.0, 1.0, 10.0),
+        Point3::new(2.0, 1.5, 20.0),
+        Point3::new(3.0, 3.0, 30.0),
+    ];
+
+    // Define the grid
+    let x_grid = vec![1.0, 2.0, 3.0];
+    let y_grid = vec![1.0, 2.0, 3.0];
+
+    // Interpolate Z values onto the grid
+    let z_grid = interpolate_to_grid(points, x_grid.clone(), y_grid.clone());
+
+    // Print the result
+    println!("X Grid: {:?}", x_grid);
+    println!("Y Grid: {:?}", y_grid);
+    println!("Z Grid: {:?}", z_grid);
+}
+
+
 fn generate_plot(n: u32, l: u32, m: i32) -> Plot {
     let mut x_vals = Vec::new();
     let mut y_vals = Vec::new();
     let mut z_vals = Vec::new();
     let mut intensity = Vec::new();
+    let mut points = Vec::new();
 
-    let steps = 50;
+    let steps = 10;
     let max_r = 10.0;
 
     for i in 0..=steps {
@@ -143,6 +198,7 @@ fn generate_plot(n: u32, l: u32, m: i32) -> Plot {
                 x_vals.push(x);
                 y_vals.push(y);
                 z_vals.push(z);
+                points.push(Point3::new(x, y, z));
                 intensity.push(prob_density);
             }
         }
@@ -155,14 +211,38 @@ fn generate_plot(n: u32, l: u32, m: i32) -> Plot {
     //     .show_scale(false)
     //     // .opacity(intensity);
     //     .surface_color(intensity)
-        // .color_scale(ColorScale::try_from(intensity).unwrap());
+    // .color_scale(ColorScale::try_from(intensity).unwrap());
     // .color_scale(ColorScale::try_from(intensity).unwrap());
 
-    let trace = Surface::new(z_vals)
-        .x(x_range)
-        .y(y_range)
-        .color_scale(ColorScale::Jet);
+    // dbg!(&x_vals);
+
+    // let z: Vec<Vec<f64>> = z_flat
+    //     .chunks(cols)
+    //     .map(|chunk| chunk.to_vec())
+    //     .collect();
+
+    // // Define the grid
+    // let x_grid: Vec<f64> = (0..=steps).map(|i| max_r * i as f64 / steps as f64).collect();
+    // let y_grid: Vec<f64> = (0..=steps).map(|i| max_r * i as f64 / steps as f64).collect();
+    // 
+    // dbg!(x_grid.len());
+    // 
+    // // Interpolate Z values onto the grid
+    // let z_grid = interpolate_to_grid(points, x_grid.clone(), y_grid.clone());
+    // 
+    // dbg!(&z_grid.len());
     
+
+    // let trace = Surface::new(z_grid)
+    //     .x(x_grid)
+    //     .y(y_grid)
+    //     .color_scale(ColorScale::Palette(plotly::common::ColorScalePalette::Jet));
+
+    let trace = Mesh3D::new(x_vals, y_vals, z_vals, None, None, None)
+        .intensity(intensity)
+        .opacity(0.8)
+        .color_scale(ColorScale::Palette(plotly::common::ColorScalePalette::Jet));
+
     let mut plot = Plot::new();
     plot.add_trace(trace);
     plot

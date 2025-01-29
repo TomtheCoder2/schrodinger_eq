@@ -1,0 +1,113 @@
+% Folie 1: Motivation Zeitabhängigkeit
+\begin{frame}{Von stationär zu dynamisch}
+    \textbf{Limit der zeitunabhängigen SG:}
+    \begin{itemize}
+        \item Beschreibt nur \alert{stationäre Zustände} ($|\psi|^2$ zeitkonstant)
+        \item Beispiel: Elektron im Atom (Grundzustand)
+    \end{itemize}
+
+    \textbf{Probleme mit Bewegung:}
+    \begin{itemize}
+        \item Wie beschreibt man Teilchen, die sich bewegen? (z.B. Elektronenstrahl)
+        \item Was passiert bei zeitabhängigen Potenzialen $V(x,t)$?
+    \end{itemize}
+
+    \centering
+    \alert{$\Rightarrow$ Brauch eine Gleichung für $\psi(x,t)$!}
+\end{frame}
+
+% Folie 2: Herleitung der TDSE
+\begin{frame}{Herleitung der zeitabhängigen SG}
+    \textbf{Ansatz:} Energie-Operator $\hat{E} = i\hbar\frac{\partial}{\partial t}$\\
+    Analog zu $\hat{p} = -i\hbar\frac{\partial}{\partial x}$
+
+    \textbf{Energiegleichung:}
+    \[
+        \underbrace{\hat{H}}_{\text{Hamiltonoperator}} \psi = \underbrace{\hat{E}}_{\text{Energieoperator}} \psi
+    \]
+
+    \textbf{Einsetzen der Operatoren:}
+    \[
+        -\frac{\hbar^2}{2m}\frac{\partial^2 \psi}{\partial x^2} + V(x)\psi = i\hbar\frac{\partial \psi}{\partial t}
+    \]
+
+    \textbf{Allgemeine Form:}
+    \[
+        \boxed{\hat{H}\psi(x,t) = i\hbar\frac{\partial}{\partial t}\psi(x,t)}
+    \]
+\end{frame}
+
+% Folie 3: Vergleich Zeitabhängig vs. Unabhängig
+\begin{frame}{Vergleich der Gleichungen}
+    \begin{columns}
+        \column{0.5\textwidth}
+        \textbf{Zeitunabhängig:}
+        \[
+            \hat{H}\psi = E\psi
+        \]
+        \begin{itemize}
+            \item Eigenwertgleichung
+            \item Lösungen: $\psi_n(x)e^{-iE_n t/\hbar}$
+            \item Stationäre Zustände
+        \end{itemize}
+
+        \column{0.5\textwidth}
+        \textbf{Zeitabhängig:}
+        \[
+            \hat{H}\psi = i\hbar\dot{\psi}
+        \]
+        \begin{itemize}
+            \item Differentialgleichung 1. Ordnung in $t$
+            \item Beschreibt Zeitentwicklung
+            \item Allgemeine Lösung: Überlagerung von $\psi_n$
+        \end{itemize}
+    \end{columns}
+\end{frame}
+
+% Folie 4: Lösungsansatz (Separation)
+\begin{frame}{Lösungsmethode: Separation der Variablen}
+    \textbf{Ansatz:} $\psi(x,t) = \phi(x)T(t)$\\
+    Einsetzen in TDSE:
+    \[
+        \frac{\hat{H}\phi(x)}{\phi(x)} = \frac{i\hbar \dot{T}(t)}{T(t)} = E
+    \]
+
+    \textbf{Zwei Gleichungen:}
+    \begin{enumerate}
+        \item Zeitunabhängige SG: $\hat{H}\phi = E\phi$
+        \item Zeitentwicklung: $T(t) = e^{-iEt/\hbar}$
+    \end{enumerate}
+
+    \textbf{Vollständige Lösung:}
+    \[
+        \psi(x,t) = \phi(x)e^{-iEt/\hbar}
+    \]
+    \begin{itemize}
+        \item Phasenfaktor $e^{-iEt/\hbar}$ ändert $|\psi|^2$ nicht
+    \end{itemize}
+\end{frame}
+
+% Folie 5: Wellenpakete (Vorbereitung Doppelspalt)
+\input{test_import}
+% Folie 6: Doppelspalt-Experiment vorbereiten
+\begin{frame}{Der Weg zum Doppelspalt}
+    \textbf{Modellierung im 2D:}
+    \[
+        i\hbar\frac{\partial \psi}{\partial t} = \left(-\frac{\hbar^2}{2m}(\frac{\partial^2}{\partial x^2} + \frac{\partial^2}{\partial y^2}) + V(x,y)\right)\psi
+    \]
+
+    \textbf{Potenzial beim Doppelspalt:}
+    \[
+        V(x,y) = \begin{cases}
+                     \infty & \text{(Wand)} \\
+                     0 & \text{(Spalte)}
+        \end{cases}
+    \]
+
+    \textbf{Lösungsstrategie:}
+    \begin{enumerate}
+        \item Anfangsbedingung: Wellenpaket vor der Wand
+        \item Zeitentwicklung berechnen (numerisch)
+        \item Interferenzmuster entsteht durch $\psi_1 + \psi_2$
+    \end{enumerate}
+\end{frame}

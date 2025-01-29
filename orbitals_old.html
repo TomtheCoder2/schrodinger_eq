@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Electron Probability Visualization</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .controls {
+            grid-column: 1 / -1;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        .plot {
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+<div class="controls">
+    <label>n (principal): <input type="number" id="n" value="1" min="1"></label>
+    <label>l (azimuthal): <input type="number" id="l" value="0" min="0"></label>
+    <label>m (magnetic): <input type="number" id="m" value="0"></label>
+    <label>resolution: <input type="number" id="res" value="25" min="10"></label>
+    <button onclick="updatePlot()">Update</button>
+    <p>Examples:
+        <button onclick="setExample(1,0,0)">1s (Hydrogen)</button>
+        <button onclick="setExample(2,1,0)">2p (m=0)</button>
+        <button onclick="setExample(3,2,0)">3d (m=0)</button>
+    </p>
+</div>
+<div class="container">
+    <div id="3dplot" class="plot"></div>
+    <div id="heatmap" class="plot"></div>
+</div>
+
+<script>
+    function setExample(n, l, m) {
+        document.getElementById('n').value = n;
+        document.getElementById('l').value = l;
+        document.getElementById('m').value = m;
+        updatePlot();
+    }
+
+    function radial(n, l, r) {
+        // Bohr radius set to 1 for simplicity
+        if (n === 1 && l === 0) { // 1s
+            return 2 * Math.exp(-r);
+        } else if (n === 2 && l === 0) { // 2s
+            return (1 / (2 * Math.sqrt(2))) * (2 - r) * Math.exp(-r / 2);
+        } else if (n === 2 && l === 1) { // 2p
+            return (1 / (2 * Math.sqrt(6))) * r * Math.exp(-r / 2);
+        } else if (n === 3 && l === 0) { // 3s
+            return (2 / (81 * Math.sqrt(3))) * (27 - 18 * r + 2 * r * r) * Math.exp(-r / 3);
+        }
+        return 0;
+    }
+
+    function angularSquared(l, m, theta) {
+        const absM = Math.abs(m);
+        if (l === 0 && absM === 0) {
+            return 1 / (4 * Math.PI);
+        } else if (l === 1) {
+            if (absM === 0) {
+                return (3 / (4 * Math.PI)) * Math.cos(theta) ** 2;
+            } else {
+                return (3 / (8 * Math.PI)) * Math.sin(theta) ** 2;
+            }
+        } else if (l === 2) {
+            if (absM === 0) {
+                return (5 / (16 * Math.PI)) * (3 * Math.cos(theta) ** 2 - 1) ** 2;
+            } else if (absM === 1) {
+                return (15 / (8 * Math.PI)) * Math.sin(theta) ** 2 * Math.cos(theta) ** 2;
+            } else {
+                return (15 / (32 * Math.PI)) * Math.sin(theta) ** 4;
+            }
+        }
+        return 0;
+    }
+
+    function generate3DData(n, l, m, res = 25) {
+        const rMax = n * 5;
+        const dr = rMax / res;
+        const dTheta = Math.PI / res;
+        const dPhi = Math.PI / res;
+        const points = [];
+
+        for (let r = dr; r <= rMax; r += dr) {
+            for (let theta = 0; theta <= Math.PI; theta += dTheta) {
+                const phiDensity = angularSquared(l, m, theta);
+                if (phiDensity === 0) continue;
+
+                for (let phi = 0; phi < 2 * Math.PI; phi += dPhi) {
+                    const radialDensity = radial(n, l, r) ** 2;
+                    const density = radialDensity * phiDensity;
+
+                    // Convert to Cartesian
+                    const x = r * Math.sin(theta) * Math.cos(phi);
+                    const y = r * Math.sin(theta) * Math.sin(phi);
+                    const z = r * Math.cos(theta);
+
+                    points.push({x, y, z, density});
+                }
+            }
+        }
+        return points;
+    }
+
+    function generateHeatmapData(n, l, m) {
+        const size = 20;
+        const step = 0.5;
+        const data = [];
+
+        for (let x = -size / 2; x <= size / 2; x += step) {
+            const row = [];
+            for (let y = -size / 2; y <= size / 2; y += step) {
+                const r = Math.sqrt(x * x + y * y);
+                const theta = Math.PI / 2; // z=0 plane
+                const density = radial(n, l, r) ** 2 * angularSquared(l, m, theta);
+                row.push(density);
+            }
+            data.push(row);
+        }
+        return data;
+    }
+
+    function updatePlot() {
+        const n = parseInt(document.getElementById('n').value);
+        const l = parseInt(document.getElementById('l').value);
+        const m = parseInt(document.getElementById('m').value);
+        const res = parseInt(document.getElementById('res').value);
+
+        // Basic quantum number validation
+        if (l >= n || Math.abs(m) > l) {
+            alert('Invalid quantum numbers!');
+            return;
+        }
+
+        // Generate data
+        const points3D = generate3DData(n, l, m, res);
+        const heatmapData = generateHeatmapData(n, l, m);
+
+        // Prepare 3D plot data
+        const x = points3D.map(p => p.x);
+        const y = points3D.map(p => p.y);
+        const z = points3D.map(p => p.z);
+        const colors = points3D.map(p => p.density);
+        const maxDensity = Math.max(...colors);
+        console.log(maxDensity);
+        const sizes = colors.map(d => 5 * (d / maxDensity));
+
+        const trace3D = {
+            x, y, z,
+            mode: 'markers',
+            marker: {
+                size: sizes,
+                color: colors,
+                colorscale: 'Viridis',
+                opacity: 0.6,
+                sizemode: 'diameter'
+            },
+            type: 'scatter3d'
+        };
+
+        const heatmapTrace = {
+            z: heatmapData,
+            type: 'heatmap',
+            colorscale: 'Viridis'
+        };
+
+        // Update plots
+        Plotly.newPlot('3dplot', [trace3D], {
+            title: `3D Probability Density (n=${n}, l=${l}, m=${m})`,
+            margin: {t: 40}
+        });
+
+        Plotly.newPlot('heatmap', [heatmapTrace], {
+            title: `XY Plane Heatmap (z=0)`,
+            xaxis: {title: 'x'},
+            yaxis: {title: 'y'}
+        });
+    }
+
+    // Initial plot
+    updatePlot();
+</script>
+</body>
+</html>

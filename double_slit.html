@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Double Slit Interference</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+<canvas id="simCanvas"></canvas>
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Set canvas dimensions
+    canvas.width = 1200;
+    canvas.height = 400;
+
+    // Simulation parameters
+    const slitSeparation = 80;       // Distance between slits
+    const slitWidth = 20;            // Width of each slit
+    const wavelength = 30;           // Wavelength of electron wave
+    const waveSpeed = 3;             // Animation speed
+    const detectionScreen = 1100;    // X-position of detection screen
+
+    let waveFront = 100;             // Initial wave position
+    let detectionData = new Array(canvas.height).fill(0); // Detection pattern
+
+    function drawBarrier() {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(500, 0, 20, canvas.height / 2 - slitSeparation / 2 - slitWidth);
+        ctx.fillRect(500, canvas.height / 2 + slitSeparation / 2 + slitWidth, 20,
+            canvas.height / 2 - slitSeparation / 2 - slitWidth);
+    }
+
+    function drawWave() {
+        ctx.beginPath();
+        ctx.arc(waveFront, canvas.height / 2, 20, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 150, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        if (waveFront > 500) {
+            // Draw waves emerging from both slits
+            const time = (waveFront - 500) / waveSpeed;
+            drawWaveFromSlit(canvas.height / 2 - slitSeparation / 2, time);
+            drawWaveFromSlit(canvas.height / 2 + slitSeparation / 2, time);
+        }
+    }
+
+    function drawWaveFromSlit(yPos, time) {
+        ctx.beginPath();
+        ctx.arc(510, yPos, time * waveSpeed, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 200, 100, 0.3)';
+        ctx.stroke();
+    }
+
+    function updateDetectionPattern() {
+        const L = detectionScreen - 510;
+        for (let y = 0; y < canvas.height; y++) {
+            const yd = y - canvas.height / 2;
+            const pathDiff = Math.sqrt(L ** 2 + (yd - slitSeparation / 2) ** 2) -
+                Math.sqrt(L ** 2 + (yd + slitSeparation / 2) ** 2);
+            const phase = (pathDiff * 2 * Math.PI) / wavelength;
+            detectionData[y] += Math.cos(phase) ** 2;
+        }
+    }
+
+    function drawDetectionPattern() {
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+        for (let y = 0; y < canvas.height; y++) {
+            if (detectionData[y] > 0) {
+                ctx.fillRect(detectionScreen, y, detectionData[y] * 2, 1);
+            }
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawBarrier();
+        drawWave();
+        drawDetectionPattern();
+
+        if (waveFront < canvas.width + 100) {
+            waveFront += waveSpeed;
+            if (waveFront > 510) updateDetectionPattern();
+        } else {
+            waveFront = 100;
+            detectionData = new Array(canvas.height).fill(0);
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+</body>
+</html>

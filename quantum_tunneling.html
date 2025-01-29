@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quantum Tunneling Simulation</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+
+        .controls {
+            margin: 10px 0;
+        }
+
+        .math {
+            background: #f0f0f0;
+            padding: 20px;
+            margin: 20px 0;
+        }
+    </style>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js"
+            type="text/javascript">
+    </script>
+</head>
+<body>
+<div class="controls">
+    <label>Energy (E): <input id="energy" max="2" min="0.1" step="0.1" type="range" value="0.5"></label>
+    <label>Barrier Height (V₀): <input id="barrier" max="2" min="0.5" step="0.1" type="range" value="1"></label>
+</div>
+<canvas id="tunnelCanvas"></canvas>
+<div class="math" id="equations"></div>
+
+<script>
+    const canvas = document.getElementById('tunnelCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800;
+    canvas.height = 400;
+
+    // Simulation parameters
+    let E = 0.5;  // Particle energy
+    let V0 = 1.0; // Barrier potential
+    const barrierWidth = 100;
+    const barrierPosition = 350;
+    const m = 1;  // Particle mass (normalized)
+    const hbar = 1; // Reduced Planck's constant (normalized)
+
+    function drawPotential() {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(barrierPosition, 0, barrierWidth, canvas.height);
+    }
+
+    function waveFunction(x) {
+        // Calculate wavenumbers
+        const k1 = Math.sqrt(2 * m * E) / hbar; // Free particle region
+        const k2 = Math.sqrt(2 * m * (V0 - E)) / hbar; // Barrier region
+        const x1 = barrierPosition;
+        const x2 = barrierPosition + barrierWidth;
+
+        // Coefficients for continuity at boundaries (arbitrary scaling included)
+        const A = 1; // Incident wave amplitude
+        const B = A * Math.exp(-k2 * (x2 - x1)); // Decaying wave amplitude
+        const C = B * Math.exp(-k2 * (x2 - x1)); // Transmitted wave amplitude
+
+        if (x < x1) {
+            // Region I: Incident and reflected waves
+            return A * Math.sin(k1 * x);
+        } else if (x < x2) {
+            // Region II: Exponential decay inside the barrier
+            return B * Math.exp(-k2 * (x - x1));
+        } else {
+            // Region III: Transmitted wave with reduced amplitude
+            return C * Math.sin(k1 * (x - x2));
+        }
+    }
+
+    function drawWave() {
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2);
+
+        // Plot the wave function across the canvas width
+        for (let x = 0; x < canvas.width; x++) {
+            const scaledX = x / canvas.width * 800; // Scale canvas coordinates
+            const y = canvas.height / 2 - 100 * waveFunction(scaledX);
+            ctx.lineTo(x, y);
+        }
+
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    function updateEquations() {
+        const transmissionProbability = Math.exp(-2 * Math.sqrt(2 * m * (V0 - E)) / hbar * (barrierWidth / 100));
+        document.getElementById('equations').innerHTML = `
+                <h3>Schrödinger Equation Solutions</h3>
+                <p>Time-independent Schrödinger equation:</p>
+                $$
+                -\frac{\hbar^2}{2m}\frac{d^2\psi}{dx^2} + V(x)\psi = E\psi
+                $$
+
+                <p>For \( x < x_1 \) (free particle):</p>
+                $$
+                \psi_I(x) = A \sin(k_1 x), \quad k_1 = \sqrt{\frac{2mE}{\hbar^2}}
+                $$
+
+                <p>For \( x_1 < x < x_2 \) (barrier region):</p>
+                $$
+                \psi_{II}(x) = B e^{-k_2(x-x_1)}, \quad k_2 = \sqrt{\frac{2m(V_0-E)}{\hbar^2}}
+                $$
+
+                <p>For \( x > x_2 \) (transmitted wave):</p>
+                $$
+                \psi_{III}(x) = C \sin(k_1 (x-x_2))
+                $$
+
+                <p>Transmission probability:</p>
+                $$
+                T = e^{-2k_2L} \approx ${transmissionProbability.toFixed(4)}
+                $$
+
+                Current parameters: \( E = ${E.toFixed(1)} \text{ eV} \), \( V_0 = ${V0.toFixed(1)} \text{ eV} \)
+            `;
+
+        MathJax.typesetPromise();
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawPotential();
+        drawWave();
+        requestAnimationFrame(animate);
+    }
+
+    // Event listeners for controls
+    document.getElementById('energy').addEventListener('input', (e) => {
+        E = parseFloat(e.target.value);
+        updateEquations();
+    });
+
+    document.getElementById('barrier').addEventListener('input', (e) => {
+        V0 = parseFloat(e.target.value);
+        updateEquations();
+    });
+
+    animate();
+    updateEquations();
+</script>
+</body>
+</html>
