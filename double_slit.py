@@ -20,10 +20,15 @@ sun.data.energy = 5
 
 # ---------- Simulation Parameter ----------
 N = 100
-frames = 3
+frames = 100  # Erhöht für längere Animation
 wavelength = 0.5
-slit_width = 0.6  # Breite jedes Spalts
-slit_separation = 2.5  # Abstand zwischen Spaltmitten
+slit_width = 0.6
+slit_separation = 2.5
+
+# NEUE PARAMETER: Wellenstartposition
+wave_start_x = -4.0  # Startposition x (links vom Doppelspalt)
+wave_start_y = 0  # Startposition y (leicht versetzt)
+wave_speed = 2.0  # Ausbreitungsgeschwindigkeit
 
 # ---------- Material Setup ----------
 mat = bpy.data.materials.new(name="WaveMaterial")
@@ -33,64 +38,55 @@ bsdf.inputs["Base Color"].default_value = (0.2, 0.4, 1.0, 1.0)
 bsdf.inputs["Metallic"].default_value = 0.3
 
 
-# ---------- Wellenfunktion mit 2 Spalten ----------
+# ---------- Modifizierte Wellenfunktion ----------
 def psi(x, y, t):
-    # Barriere mit 2 Spalten
+    # Barrierebedingung (unverändert)
     if -0.3 < x < 0.3:
-        # Spaltpositionen
         slit1 = (y > -slit_separation / 2 - slit_width / 2) and (y < -slit_separation / 2 + slit_width / 2)
         slit2 = (y > slit_separation / 2 - slit_width / 2) and (y < slit_separation / 2 + slit_width / 2)
         if not (slit1 or slit2):
             return 0.0
 
-    # Wellenausbreitung
-    r = np.sqrt((x + 2 * t) ** 2 + y ** 2)
+    # NEUE BERECHNUNG: Relativ zur Startposition
+    dx = x - wave_start_x + wave_speed * t  # Bewegung in +x-Richtung
+    dy = y - wave_start_y
+    r = np.sqrt(dx ** 2 + dy ** 2)
+
     return np.exp(-0.25 * (r - 3 * t) ** 2) * np.sin(2 * np.pi * r / wavelength)
 
 
-# ---------- Animation ----------
+# ---------- Animation (unverändert) ----------
 for frame in range(frames):
-    # Lösche vorheriges Mesh
     for obj in coll.objects:
         if obj.name.startswith("WaveObject"):
             bpy.data.objects.remove(obj, do_unlink=True)
 
-    # Generiere Vertices
     verts = []
     for i in range(N):
         for j in range(N):
             x = (i / N - 0.5) * 10
             y = (j / N - 0.5) * 10
-            z = abs(psi(x, y, frame / 10)) ** 2   # Verstärkte Z-Skalierung
+            z = abs(psi(x, y, frame / 10)) ** 2 * 1.5  # Intensität skaliert
             verts.append((x, y, z))
 
-    # Generiere Faces
     faces = []
     for i in range(N - 1):
         for j in range(N - 1):
             v1 = i * N + j
-            v2 = v1 + 1
-            v3 = v1 + N + 1
-            v4 = v1 + N
-            faces.append([v1, v2, v3, v4])
+            faces.append([v1, v1 + 1, v1 + N + 1, v1 + N])
 
-    # Erstelle Mesh
     mesh = bpy.data.meshes.new("WaveMesh")
     mesh.from_pydata(verts, [], faces)
     obj = bpy.data.objects.new("WaveObject", mesh)
     coll.objects.link(obj)
     obj.data.materials.append(mat)
 
-    # Optimierte Subdivision
     modifier = obj.modifiers.new(name="Subdivision", type='SUBSURF')
-    modifier.levels = 2  # Reduziert für bessere Performance
-    modifier.render_levels = 2
+    modifier.levels = 5
 
-    # Glättung
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.shade_smooth()
 
-    # Rendern
     bpy.context.scene.frame_set(frame)
     bpy.context.scene.render.filepath = f"//render/frame_{frame:04d}.png"
     bpy.ops.render.render(write_still=True)
