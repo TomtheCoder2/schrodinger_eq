@@ -20,7 +20,7 @@ sun.data.energy = 5
 
 # ---------- Simulation Parameter ----------
 N = 100
-frames = 200
+frames = 80
 wavelength = 1
 slit_width = 0.2
 slit_separation = 2
@@ -177,7 +177,7 @@ for frame in range(frames):
 
     # Glättung hinzufügen
     modifier = obj.modifiers.new(name="Subdivision", type='SUBSURF')
-    modifier.levels = 6
+    modifier.levels = 7
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.shade_smooth()
 
